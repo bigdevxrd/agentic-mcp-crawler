@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  agentic-mcp:
+    build: .
+    ports:
+      - "8051:8051"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=8051
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8051/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Local Supabase for development
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    environment:
+      POSTGRES_PASSWORD: your-super-secret-and-long-postgres-password
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase-db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    profiles: ["local-db"]
+
+volumes:
+  supabase-db:
