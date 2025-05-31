@@ -5,6 +5,7 @@ Transforms basic crawling into strategic, learning-based web intelligence.
 
 import asyncio
 import json
+import os
 import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
@@ -96,7 +97,9 @@ class AgenticCrawler:
                 patterns[row['pattern_type']] = row['pattern_data']
             return patterns
         except Exception as e:
-            print(f"Could not load learned patterns: {e}")
+            # Only print errors when not in stdio mode to avoid breaking JSON protocol
+            if os.getenv('TRANSPORT', '').lower() != 'stdio':
+                print(f"Could not load learned patterns: {e}")
             return {}
     
     async def analyze_intent(self, user_query: str, context: Optional[Dict] = None) -> CrawlContext:

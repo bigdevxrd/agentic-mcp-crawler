@@ -46,10 +46,13 @@ async def enhanced_crawl_lifespan(server: FastMCP) -> AsyncIterator[EnhancedCraw
     
     # Initialize agentic crawler
     anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-    if not anthropic_api_key:
+    if not anthropic_api_key or anthropic_api_key == 'YOUR_ANTHROPIC_API_KEY_HERE':
         raise ValueError("ANTHROPIC_API_KEY required for agentic features")
     
     agentic_crawler = await create_agentic_crawler(anthropic_api_key, supabase_client)
+    # Only print status when not in stdio mode to avoid breaking JSON protocol
+    if os.getenv('TRANSPORT', '').lower() != 'stdio':
+        print("✅ Agentic intelligence enabled")
     
     try:
         yield EnhancedCrawlContext(
@@ -65,7 +68,7 @@ mcp = FastMCP("Enhanced-Crawl4AI-MCP", lifespan=enhanced_crawl_lifespan)
 
 @mcp.tool()
 async def agentic_crawl(
-    ctx: Context[EnhancedCrawlContext],
+    ctx: Context,
     url: str,
     user_query: str,
     context: Optional[str] = None
@@ -84,8 +87,9 @@ async def agentic_crawl(
     try:
         context_dict = json.loads(context) if context else {}
         
-        # Use agentic crawler for intelligent crawling
-        results = await ctx.crawler_context.agentic_crawler.adaptive_crawl(
+        # Access the lifespan context properly
+        crawler_context = ctx.extra
+        results = await crawler_context.agentic_crawler.adaptive_crawl(
             url=url,
             user_query=user_query,
             context=context_dict
@@ -107,7 +111,7 @@ async def agentic_crawl(
                 "source": f"agentic_crawl_{url}"
             }]
             
-            await add_documents_to_supabase(ctx.crawler_context.supabase_client, documents)
+            await add_documents_to_supabase(ctx.extra.supabase_client, documents)
         
         return {
             "success": True,
@@ -128,7 +132,7 @@ async def agentic_crawl(
 
 @mcp.tool()
 async def discover_opportunities(
-    ctx: Context[EnhancedCrawlContext],
+    ctx: Context,
     domain: str,
     interests: List[str]
 ) -> Dict[str, Any]:
@@ -143,7 +147,7 @@ async def discover_opportunities(
         Curated list of discovery opportunities with reasoning
     """
     try:
-        opportunities = await ctx.crawler_context.agentic_crawler.proactive_discovery(
+        opportunities = await ctx.extra.agentic_crawler.proactive_discovery(
             domain=domain,
             interests=interests
         )
@@ -167,7 +171,7 @@ async def discover_opportunities(
 
 @mcp.tool()
 async def intelligent_search(
-    ctx: Context[EnhancedCrawlContext],
+    ctx: Context,
     query: str,
     max_results: int = 10
 ) -> Dict[str, Any]:
@@ -184,7 +188,7 @@ async def intelligent_search(
     try:
         # Search existing content
         search_results = await search_documents(
-            ctx.crawler_context.supabase_client,
+            ctx.extra.supabase_client,
             query=query,
             limit=max_results
         )
@@ -228,7 +232,7 @@ async def intelligent_search(
 
 @mcp.tool()
 async def standard_crawl(
-    ctx: Context[EnhancedCrawlContext],
+    ctx: Context,
     url: str,
     extract_format: str = "markdown"
 ) -> Dict[str, Any]:
@@ -251,7 +255,7 @@ async def standard_crawl(
         )
         
         # Execute crawl
-        result = await ctx.crawler_context.crawler.arun(url=url, config=config)
+        result = await ctx.extra.crawler.arun(url=url, config=config)
         
         if result.success:
             # Store in Supabase
@@ -266,7 +270,7 @@ async def standard_crawl(
                 "source": f"standard_crawl_{url}"
             }]
             
-            await add_documents_to_supabase(ctx.crawler_context.supabase_client, documents)
+            await add_documents_to_supabase(ctx.extra.supabase_client, documents)
             
             return {
                 "success": True,

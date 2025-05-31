@@ -17,5 +17,5 @@ RUN uv pip install --system -e . && \
 
 EXPOSE ${PORT}
 
-# Command to run the MCP server
-CMD ["uv", "run", "src/crawl4ai_mcp.py"]
+# Command to run the MCP server directly using system Python
+CMD ["python", "src/enhanced_mcp_server.py"]
